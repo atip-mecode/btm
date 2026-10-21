@@ -1,8 +1,5 @@
+import type { ActionResult } from "@/lib/actionResult";
 import { MemberRepositoryError, type Member, type MemberRepository } from "@/features/members/data/memberRepository";
-
-export type ActionResult<T, E extends string = string> =
-  | { success: true; data: T }
-  | { success: false; error: { code: E; message: string } };
 
 export type MemberActionErrorCode = "INVALID_NAME" | "DUPLICATE_NAME" | "PERSISTENCE_ERROR";
 
