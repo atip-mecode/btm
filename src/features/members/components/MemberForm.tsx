@@ -27,7 +27,6 @@ export function MemberForm({ members, selectedMemberIds, isLoading, error, toggl
 
   return (
     <section className="space-y-4">
-      <h2 className="text-base font-semibold text-slate-900">สมาชิก</h2>
       <MultiSelectField
         id="member-select"
         label="เลือกสมาชิก"

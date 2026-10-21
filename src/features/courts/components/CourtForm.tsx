@@ -52,7 +52,6 @@ export function CourtForm({ courts, selectedCourtIds, startHour, isLoading, erro
           <ChevronDown aria-hidden="true" size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         </div>
       </div>
-      <h2 className="text-base font-semibold text-slate-900">Court</h2>
       <MultiSelectField
         id="court-select"
         label="เลือกคอร์ด"

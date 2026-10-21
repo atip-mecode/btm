@@ -1,14 +1,20 @@
 import { CleanLayout } from "@/components/layout/CleanLayout";
-import { BottomActionNavigation } from "@/components/layout/BottomActionNavigation";
 import { NewFlow } from "@/features/courts/components/NewFlow";
+import { parseStartHour } from "@/features/courts/utils/courtSchedule";
 
-export default function NewPage() {
+type NewPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function NewPage({ searchParams }: NewPageProps) {
+  const params = await searchParams;
+  const parsedStartHour = parseStartHour(params.start);
+  const initialStartHour = parsedStartHour === null ? "" : String(parsedStartHour).padStart(2, "0");
+  const typeValue = typeof params.type === "string" && /^[12]$/.test(params.type) ? params.type : "1";
+
   return (
     <CleanLayout>
-      <main aria-label="สร้างรายการใหม่" className="min-h-0 flex-1 overflow-y-auto pb-[calc(84px+env(safe-area-inset-bottom))]">
-        <NewFlow />
-      </main>
-      <BottomActionNavigation />
+      <NewFlow initialStartHour={initialStartHour} matchType={typeValue} />
     </CleanLayout>
   );
 }
