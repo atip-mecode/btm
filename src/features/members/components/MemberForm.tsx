@@ -12,8 +12,8 @@ export function MemberForm() {
 
   async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const wasAdded = await addMember(memberName);
-    if (wasAdded) setMemberName("");
+    const result = await addMember(memberName);
+    if (result.success) setMemberName("");
   }
 
   return (

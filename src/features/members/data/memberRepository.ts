@@ -3,6 +3,16 @@ export type Member = {
   name: string;
 };
 
+export class MemberRepositoryError extends Error {
+  constructor(
+    readonly code: "DUPLICATE_NAME" | "PERSISTENCE_ERROR",
+    message: string,
+  ) {
+    super(message);
+    this.name = "MemberRepositoryError";
+  }
+}
+
 /** Data boundary for member persistence. Replace with an API-backed adapter later. */
 export interface MemberRepository {
   getMembers(): Promise<Member[]>;
@@ -34,8 +44,12 @@ export const localStorageMemberRepository: MemberRepository = {
   },
 
   async createMember(name) {
-    const member = { id: createId(), name };
     const members = readJson<Member[]>(membersKey, []);
+    const normalizedName = name.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+    if (members.some((member) => member.name.trim().replace(/\s+/g, " ").toLocaleLowerCase() === normalizedName)) {
+      throw new MemberRepositoryError("DUPLICATE_NAME", "มีชื่อนี้ในรายชื่อสมาชิกแล้ว");
+    }
+    const member = { id: createId(), name };
     window.localStorage.setItem(membersKey, JSON.stringify([...members, member]));
     return member;
   },

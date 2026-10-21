@@ -6,6 +6,11 @@ import {
   type Member,
   type MemberRepository,
 } from "@/features/members/data/memberRepository";
+import {
+  addMemberAction,
+  getMembersAction,
+  saveSelectedMembersAction,
+} from "@/features/members/actions/memberActions";
 
 export function useMembers(repository: MemberRepository = localStorageMemberRepository) {
   const [members, setMembers] = useState<Member[]>([]);
@@ -15,18 +20,17 @@ export function useMembers(repository: MemberRepository = localStorageMemberRepo
 
   useEffect(() => {
     let isCurrent = true;
-    Promise.all([repository.getMembers(), repository.getSelectedMemberIds()])
-      .then(([savedMembers, savedIds]) => {
-        if (!isCurrent) return;
-        setMembers(savedMembers);
-        setSelectedMemberIds(savedIds.filter((id) => savedMembers.some((member) => member.id === id)));
-      })
-      .catch(() => {
-        if (isCurrent) setError("โหลดข้อมูลสมาชิกไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง");
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoading(false);
-      });
+    getMembersAction(repository).then((result) => {
+      if (!isCurrent) return;
+      if (result.success) {
+        setMembers(result.data.members);
+        setSelectedMemberIds(result.data.selectedMemberIds);
+        return;
+      }
+      setError(result.error.message);
+    }).finally(() => {
+      if (isCurrent) setIsLoading(false);
+    });
 
     return () => {
       isCurrent = false;
@@ -37,32 +41,27 @@ export function useMembers(repository: MemberRepository = localStorageMemberRepo
     const nextIds = selectedMemberIds.includes(memberId)
       ? selectedMemberIds.filter((id) => id !== memberId)
       : [...selectedMemberIds, memberId];
-    try {
-      await repository.saveSelectedMemberIds(nextIds);
-      setSelectedMemberIds(nextIds);
+    const result = await saveSelectedMembersAction(repository, nextIds);
+    if (result.success) {
+      setSelectedMemberIds(result.data);
       setError(null);
-    } catch {
-      setError("บันทึกสมาชิกที่เลือกไม่สำเร็จ");
+    } else {
+      setError(result.error.message);
     }
+    return result;
   }, [repository, selectedMemberIds]);
 
-  const addMember = useCallback(async (rawName: string) => {
-    const name = rawName.trim();
-    if (!name) return false;
-    try {
-      const member = await repository.createMember(name);
-      const nextMembers = [...members, member];
-      const nextSelectedIds = [...selectedMemberIds, member.id];
-      await repository.saveSelectedMemberIds(nextSelectedIds);
-      setMembers(nextMembers);
-      setSelectedMemberIds(nextSelectedIds);
+  const addMember = useCallback(async (name: string) => {
+    const result = await addMemberAction(repository, name);
+    if (result.success) {
+      setMembers((currentMembers) => [...currentMembers, result.data.member]);
+      setSelectedMemberIds(result.data.selectedMemberIds);
       setError(null);
-      return true;
-    } catch {
-      setError("เพิ่มสมาชิกไม่สำเร็จ ลองอีกครั้งนะ");
-      return false;
+    } else {
+      setError(result.error.message);
     }
-  }, [members, repository, selectedMemberIds]);
+    return result;
+  }, [repository]);
 
   return { members, selectedMemberIds, isLoading, error, toggleMember, addMember };
 }
