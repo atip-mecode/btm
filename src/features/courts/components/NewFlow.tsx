@@ -11,10 +11,9 @@ import { SelectedChips } from "@/components/forms/SelectedChips";
 
 type NewFlowProps = {
   initialStartHour: string;
-  matchType: string;
 };
 
-export function NewFlow({ initialStartHour, matchType }: NewFlowProps) {
+export function NewFlow({ initialStartHour }: NewFlowProps) {
   const router = useRouter();
   const [startHour, setStartHour] = useState(initialStartHour);
   const courtState = useCourts();
@@ -25,7 +24,7 @@ export function NewFlow({ initialStartHour, matchType }: NewFlowProps) {
   function handleNext() {
     if (!startHour || selectedCourts.length === 0) return;
 
-    const params = new URLSearchParams({ start: startHour, type: matchType });
+    const params = new URLSearchParams({ start: startHour });
     selectedCourts.forEach((court) => params.append("courtId", court.id));
     router.push(`/prepare?${params.toString()}`);
   }

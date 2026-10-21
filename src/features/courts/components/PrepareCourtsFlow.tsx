@@ -7,14 +7,16 @@ import { BottomActionNavigation } from "@/components/layout/BottomActionNavigati
 import { useCourts } from "@/features/courts/hooks/useCourts";
 import { useMembers } from "@/features/members/hooks/useMembers";
 import { calculateCourtTimeRange, hasContinuousCourtOverlap } from "@/features/courts/utils/courtSchedule";
+import { resolvePairing } from "@/features/matching/actions/pairingActions";
+import { encodePairingResult } from "@/features/matching/services/pairingUrlState";
+import type { PreparedMatchRecord } from "@/features/matching/types/preparedMatch";
 
 type PrepareCourtsFlowProps = {
   startHour: number | null;
   selectedCourtIds: string[];
-  matchType: string;
 };
 
-export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: PrepareCourtsFlowProps) {
+export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourtsFlowProps) {
   const router = useRouter();
   const [startHourOffsets, setStartHourOffsets] = useState<Record<string, number>>({});
   const [memberEndHours, setMemberEndHours] = useState<Record<string, number>>({});
@@ -45,12 +47,8 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
   const maxPlayHours = playerRangeStart !== null && playerRangeEnd !== null
     ? playerRangeEnd - playerRangeStart
     : null;
-  const defaultMemberHours = hasCompleteCourtRange
-    ? Math.max(...validCourtRanges.map((range) => range.end - range.start))
-    : null;
-
   function handleBack() {
-    const params = new URLSearchParams({ type: matchType });
+    const params = new URLSearchParams();
     if (startHour !== null) params.set("start", String(startHour).padStart(2, "0"));
     router.push(`/new?${params.toString()}`);
   }
@@ -62,6 +60,8 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
       ...offsets,
       [courtId]: (offsets[courtId] ?? 0) + hours,
     }));
+    setMemberStartHours({});
+    setMemberEndHours({});
   }
 
   function canShiftCourtStart(courtId: string, hours: number) {
@@ -76,10 +76,10 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
   }
 
   function getMemberSchedule(memberId: string) {
-    if (defaultMemberHours === null || maxPlayHours === null || playerRangeStart === null || playerRangeEnd === null) return null;
+    if (maxPlayHours === null || playerRangeStart === null || playerRangeEnd === null) return null;
 
     const earliestEnd = playerRangeStart + 1;
-    const end = Math.min(Math.max(memberEndHours[memberId] ?? playerRangeStart + defaultMemberHours, earliestEnd), playerRangeEnd);
+    const end = Math.min(Math.max(memberEndHours[memberId] ?? playerRangeEnd, earliestEnd), playerRangeEnd);
     const start = Math.min(Math.max(memberStartHours[memberId] ?? playerRangeStart, playerRangeStart), end - 1);
     return { start, end, hours: end - start };
   }
@@ -117,6 +117,34 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
       ...currentEnds,
       [memberId]: schedule.end + change,
     }));
+  }
+
+  function handlePairing() {
+    if (startHour === null || playerRangeStart === null || playerRangeEnd === null || maxPlayHours === null) return;
+    if (!hasCompleteCourtRange || selectedMembers.length === 0) return;
+
+    const players = selectedMembers.flatMap((member) => {
+      const schedule = getMemberSchedule(member.id);
+      return schedule ? [{ id: member.id, name: member.name, startHour: schedule.start, endHour: schedule.end }] : [];
+    });
+    if (players.length !== selectedMembers.length) return;
+
+    const prepared: PreparedMatchRecord = {
+      maxRange: { startHour: playerRangeStart, endHour: playerRangeEnd, hours: maxPlayHours },
+      courts: selectedCourts.map((court) => {
+        const courtStart = startHour + (startHourOffsets[court.id] ?? 0);
+        return {
+          id: court.id,
+          name: court.name,
+          bookedHours: court.hours,
+          startHour: courtStart,
+          endHour: courtStart + court.hours,
+        };
+      }),
+      players,
+    };
+    const state = encodePairingResult(resolvePairing(prepared));
+    router.push(`/match?${new URLSearchParams({ state, fillin: "false" }).toString()}`);
   }
 
   return (
@@ -293,7 +321,12 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
           ) : null}
         </div>
       </main>
-      <BottomActionNavigation onBack={handleBack} showNext nextLabel="จับคู่" />
+      <BottomActionNavigation
+        onBack={handleBack}
+        onNext={handlePairing}
+        nextLabel="จับคู่"
+        nextDisabled={isLoading || areMembersLoading || !hasCompleteCourtRange || selectedMembers.length === 0}
+      />
     </>
   );
 }

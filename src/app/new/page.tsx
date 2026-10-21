@@ -10,11 +10,9 @@ export default async function NewPage({ searchParams }: NewPageProps) {
   const params = await searchParams;
   const parsedStartHour = parseStartHour(params.start);
   const initialStartHour = parsedStartHour === null ? "" : String(parsedStartHour).padStart(2, "0");
-  const typeValue = typeof params.type === "string" && /^[12]$/.test(params.type) ? params.type : "1";
-
   return (
     <CleanLayout>
-      <NewFlow initialStartHour={initialStartHour} matchType={typeValue} />
+      <NewFlow initialStartHour={initialStartHour} />
     </CleanLayout>
   );
 }

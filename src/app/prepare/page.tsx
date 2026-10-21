@@ -14,14 +14,11 @@ export default async function PreparePage({ searchParams }: PreparePageProps) {
     : Array.isArray(courtIdParam)
       ? courtIdParam
       : [];
-  const typeValue = typeof params.type === "string" && /^[12]$/.test(params.type) ? params.type : "1";
-
   return (
     <CleanLayout>
       <PrepareCourtsFlow
         startHour={parseStartHour(params.start)}
         selectedCourtIds={Array.from(new Set(selectedCourtIds.filter(Boolean)))}
-        matchType={typeValue}
       />
     </CleanLayout>
   );
