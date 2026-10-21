@@ -17,7 +17,8 @@ type PrepareCourtsFlowProps = {
 export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: PrepareCourtsFlowProps) {
   const router = useRouter();
   const [startHourOffsets, setStartHourOffsets] = useState<Record<string, number>>({});
-  const [memberStartHourOffsets, setMemberStartHourOffsets] = useState<Record<string, number>>({});
+  const [memberEndHours, setMemberEndHours] = useState<Record<string, number>>({});
+  const [memberStartHours, setMemberStartHours] = useState<Record<string, number>>({});
   const { courts, isLoading } = useCourts();
   const { members, selectedMemberIds, isLoading: areMembersLoading } = useMembers();
   const courtsById = new Map(courts.map((court) => [court.id, court]));
@@ -40,6 +41,12 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
     : null;
   const playerRangeEnd = hasCompleteCourtRange
     ? Math.max(...validCourtRanges.map((range) => range.end))
+    : null;
+  const maxPlayHours = playerRangeStart !== null && playerRangeEnd !== null
+    ? playerRangeEnd - playerRangeStart
+    : null;
+  const defaultMemberHours = hasCompleteCourtRange
+    ? Math.max(...validCourtRanges.map((range) => range.end - range.start))
     : null;
 
   function handleBack() {
@@ -68,10 +75,47 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
     return hasContinuousCourtOverlap(nextRanges);
   }
 
-  function shiftMemberStart(memberId: string, hours: number) {
-    setMemberStartHourOffsets((offsets) => ({
-      ...offsets,
-      [memberId]: (offsets[memberId] ?? 0) + hours,
+  function getMemberSchedule(memberId: string) {
+    if (defaultMemberHours === null || maxPlayHours === null || playerRangeStart === null || playerRangeEnd === null) return null;
+
+    const earliestEnd = playerRangeStart + 1;
+    const end = Math.min(Math.max(memberEndHours[memberId] ?? playerRangeStart + defaultMemberHours, earliestEnd), playerRangeEnd);
+    const start = Math.min(Math.max(memberStartHours[memberId] ?? playerRangeStart, playerRangeStart), end - 1);
+    return { start, end, hours: end - start };
+  }
+
+  function canAdjustMemberStart(memberId: string, change: number) {
+    const schedule = getMemberSchedule(memberId);
+    const nextStart = (schedule?.start ?? 0) + change;
+    return schedule !== null
+      && nextStart >= (playerRangeStart ?? 0)
+      && nextStart < schedule.end;
+  }
+
+  function adjustMemberStart(memberId: string, change: number) {
+    const schedule = getMemberSchedule(memberId);
+    if (!schedule || !canAdjustMemberStart(memberId, change)) return;
+
+    setMemberStartHours((currentStarts) => ({
+      ...currentStarts,
+      [memberId]: schedule.start + change,
+    }));
+  }
+
+  function canAdjustMemberEnd(memberId: string, change: number) {
+    const schedule = getMemberSchedule(memberId);
+    return schedule !== null
+      && schedule.end + change > schedule.start
+      && schedule.end + change <= (playerRangeEnd ?? 0);
+  }
+
+  function adjustMemberEnd(memberId: string, change: number) {
+    const schedule = getMemberSchedule(memberId);
+    if (!schedule || !canAdjustMemberEnd(memberId, change)) return;
+
+    setMemberEndHours((currentEnds) => ({
+      ...currentEnds,
+      [memberId]: schedule.end + change,
     }));
   }
 
@@ -83,6 +127,16 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
             <h1 className="text-lg font-semibold text-slate-900">เตรียมคอร์ด</h1>
             <p className="text-sm text-slate-500">ตรวจสอบเวลาเริ่มและเวลาสิ้นสุดของแต่ละคอร์ด</p>
           </header>
+
+          {maxPlayHours !== null ? (
+            <section aria-label="เวลาเล่นสูงสุด" className="flex items-center justify-between rounded-2xl bg-sky-50 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-700">เวลาเล่นสูงสุด</h2>
+                <p className="text-xs text-slate-500">ตั้งแต่คอร์ดเริ่มเร็วสุดถึงคอร์ดจบช้าที่สุด</p>
+              </div>
+              <p className="shrink-0 text-lg font-bold text-primary" aria-live="polite">{maxPlayHours} ชม.</p>
+            </section>
+          ) : null}
 
           {isLoading ? (
             <p role="status" className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow-sm">กำลังโหลดคอร์ด…</p>
@@ -161,12 +215,17 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
                 <p role="alert" className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">คำนวณช่วงเวลาผู้เล่นไม่ได้ เพราะข้อมูลชั่วโมงของคอร์ดไม่ถูกต้อง</p>
               ) : (
                 selectedMembers.map((member) => {
-                  const memberStart = playerRangeStart + (memberStartHourOffsets[member.id] ?? 0);
-                  const timeRange = calculateCourtTimeRange(memberStart, playerRangeEnd - playerRangeStart);
+                  const schedule = getMemberSchedule(member.id);
+                  const timeRange = schedule
+                    ? calculateCourtTimeRange(schedule.start, schedule.hours)
+                    : null;
 
                   return (
                     <article key={member.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                      <h3 className="truncate text-base font-semibold text-slate-900">{member.name}</h3>
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="truncate text-base font-semibold text-slate-900">{member.name}</h3>
+                        {schedule ? <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-primary">{schedule.hours} ชม.</span> : null}
+                      </div>
                       {timeRange ? (
                         <div className="mt-4 rounded-xl bg-slate-50 p-3">
                           <div aria-live="polite" className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -182,23 +241,45 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
                               {timeRange.endDaysLater !== 0 ? <p className="mt-0.5 text-xs text-slate-500">{timeRange.endDaysLater > 0 ? `อีก ${timeRange.endDaysLater} วัน` : `ก่อนหน้า ${Math.abs(timeRange.endDaysLater)} วัน`}</p> : null}
                             </div>
                           </div>
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            <button
-                              type="button"
-                              aria-label={`เลื่อนเวลาเริ่ม ${member.name} เร็วขึ้น 1 ชั่วโมง`}
-                              onClick={() => shiftMemberStart(member.id, -1)}
-                              className="flex min-h-10 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200"
-                            >
-                              <ChevronLeft aria-hidden="true" size={15} /> −1 ชม.
-                            </button>
-                            <button
-                              type="button"
-                              aria-label={`เลื่อนเวลาเริ่ม ${member.name} ช้าลง 1 ชั่วโมง`}
-                              onClick={() => shiftMemberStart(member.id, 1)}
-                              className="flex min-h-10 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200"
-                            >
-                              +1 ชม. <ChevronRight aria-hidden="true" size={15} />
-                            </button>
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium text-slate-500">เวลาเริ่ม</span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  aria-label={`เลื่อนเวลาเริ่ม ${member.name} เร็วขึ้น 1 ชั่วโมง`}
+                                  disabled={!canAdjustMemberStart(member.id, -1)}
+                                  onClick={() => adjustMemberStart(member.id, -1)}
+                                  className="min-h-10 min-w-16 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                >−1 ชม.</button>
+                                <button
+                                  type="button"
+                                  aria-label={`เลื่อนเวลาเริ่ม ${member.name} ช้าลง 1 ชั่วโมง`}
+                                  disabled={!canAdjustMemberStart(member.id, 1)}
+                                  onClick={() => adjustMemberStart(member.id, 1)}
+                                  className="min-h-10 min-w-16 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                >+1 ชม.</button>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-xs font-medium text-slate-500">เวลาจบ</span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  aria-label={`เลื่อนเวลาจบ ${member.name} เร็วขึ้น 1 ชั่วโมง`}
+                                  disabled={!canAdjustMemberEnd(member.id, -1)}
+                                  onClick={() => adjustMemberEnd(member.id, -1)}
+                                  className="min-h-10 min-w-16 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                >−1 ชม.</button>
+                                <button
+                                  type="button"
+                                  aria-label={`เลื่อนเวลาจบ ${member.name} ช้าลง 1 ชั่วโมง`}
+                                  disabled={!canAdjustMemberEnd(member.id, 1)}
+                                  onClick={() => adjustMemberEnd(member.id, 1)}
+                                  className="min-h-10 min-w-16 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                >+1 ชม.</button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -212,7 +293,7 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
           ) : null}
         </div>
       </main>
-      <BottomActionNavigation onBack={handleBack} />
+      <BottomActionNavigation onBack={handleBack} showNext nextLabel="จับคู่" />
     </>
   );
 }

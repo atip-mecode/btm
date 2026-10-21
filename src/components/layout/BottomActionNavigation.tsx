@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 type BottomActionNavigationProps = {
   onNext?: () => void;
   onBack?: () => void;
+  showNext?: boolean;
   nextLabel?: string;
   nextDisabled?: boolean;
 };
 
-export function BottomActionNavigation({ onNext, onBack, nextLabel = "ต่อไป", nextDisabled = false }: BottomActionNavigationProps) {
+export function BottomActionNavigation({ onNext, onBack, showNext = false, nextLabel = "ต่อไป", nextDisabled = false }: BottomActionNavigationProps) {
   const router = useRouter();
 
   return (
@@ -19,11 +20,11 @@ export function BottomActionNavigation({ onNext, onBack, nextLabel = "ต่อ�
         onClick={onBack ?? (() => router.back())}
         className="flex min-h-11 flex-1 items-center justify-center rounded-xl px-4 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200"
       >ย้อนกลับ</button>
-      {onNext ? (
+      {onNext || showNext ? (
         <button
           type="button"
           onClick={onNext}
-          disabled={nextDisabled}
+          disabled={nextDisabled || !onNext}
           className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {nextLabel}
