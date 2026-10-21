@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Heart, X } from "lucide-react";
 
 const matchOptions = ["แยกคอร์ด", "รวมคอร์ด"] as const;
 
 export function BottomNavigation() {
+  const router = useRouter();
   const [optionsOpen, setOptionsOpen] = useState(false);
 
   useEffect(() => {
@@ -43,10 +45,10 @@ export function BottomNavigation() {
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              {matchOptions.map((option) => (
+              {matchOptions.map((option, index) => (
                 <button
                   key={option}
-                  onClick={() => setOptionsOpen(false)}
+                  onClick={() => router.push(`/new?type=${index + 1}`)}
                   className="flex min-h-[76px] items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 px-3 text-sm font-semibold text-slate-800 transition-colors hover:border-sky-300 hover:bg-sky-100 active:scale-[0.98]"
                 >
                   {option}
