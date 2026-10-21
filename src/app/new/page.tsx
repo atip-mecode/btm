@@ -1,9 +1,11 @@
-import { HomeLayout } from "@/components/layout/HomeLayout";
+import { CleanLayout } from "@/components/layout/CleanLayout";
+import { TopNavigation } from "@/components/layout/TopNavigation";
 
 export default function NewPage() {
   return (
-    <HomeLayout>
-      <main aria-label="สร้างรายการใหม่" className="min-h-full bg-white" />
-    </HomeLayout>
+    <CleanLayout>
+      <TopNavigation />
+      <main aria-label="สร้างรายการใหม่" className="min-h-[calc(100dvh-56px)] bg-white" />
+    </CleanLayout>
   );
 }
