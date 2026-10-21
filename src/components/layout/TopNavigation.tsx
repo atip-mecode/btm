@@ -7,7 +7,7 @@ export function TopNavigation() {
   const router = useRouter();
 
   return (
-    <header className="flex h-14 items-center px-4 pt-[env(safe-area-inset-top)]">
+    <header className="flex h-14 items-center bg-white px-4 pt-[env(safe-area-inset-top)]">
       <button
         type="button"
         aria-label="ย้อนกลับ"
