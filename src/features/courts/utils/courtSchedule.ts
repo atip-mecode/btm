@@ -7,13 +7,19 @@ export function formatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-export function calculateCourtEndTime(startHour: number, durationHours: number) {
-  if (!Number.isInteger(startHour) || startHour < 0 || startHour > 23) return null;
+function normalizeHour(hour: number): number {
+  return ((hour % 24) + 24) % 24;
+}
+
+export function calculateCourtTimeRange(startHour: number, durationHours: number) {
+  if (!Number.isInteger(startHour)) return null;
   if (!Number.isInteger(durationHours) || durationHours < 1) return null;
 
   const totalEndHour = startHour + durationHours;
   return {
-    time: formatHour(totalEndHour % 24),
-    daysLater: Math.floor(totalEndHour / 24),
+    startTime: formatHour(normalizeHour(startHour)),
+    startDaysLater: Math.floor(startHour / 24),
+    endTime: formatHour(normalizeHour(totalEndHour)),
+    endDaysLater: Math.floor(totalEndHour / 24),
   };
 }

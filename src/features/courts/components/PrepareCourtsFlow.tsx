@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { BottomActionNavigation } from "@/components/layout/BottomActionNavigation";
 import { useCourts } from "@/features/courts/hooks/useCourts";
-import { calculateCourtEndTime, formatHour } from "@/features/courts/utils/courtSchedule";
+import { calculateCourtTimeRange } from "@/features/courts/utils/courtSchedule";
 
 type PrepareCourtsFlowProps = {
   startHour: number | null;
@@ -13,6 +15,7 @@ type PrepareCourtsFlowProps = {
 
 export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: PrepareCourtsFlowProps) {
   const router = useRouter();
+  const [startHourOffsets, setStartHourOffsets] = useState<Record<string, number>>({});
   const { courts, isLoading } = useCourts();
   const courtsById = new Map(courts.map((court) => [court.id, court]));
   const selectedCourts = selectedCourtIds.flatMap((id) => {
@@ -24,6 +27,13 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
     const params = new URLSearchParams({ type: matchType });
     if (startHour !== null) params.set("start", String(startHour).padStart(2, "0"));
     router.push(`/new?${params.toString()}`);
+  }
+
+  function shiftCourtStart(courtId: string, hours: number) {
+    setStartHourOffsets((offsets) => ({
+      ...offsets,
+      [courtId]: (offsets[courtId] ?? 0) + hours,
+    }));
   }
 
   return (
@@ -44,7 +54,8 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
           ) : (
             <section aria-label="รายการคอร์ด" className="flex flex-col gap-3">
               {selectedCourts.map((court) => {
-                const endTime = calculateCourtEndTime(startHour, court.hours);
+                const courtStartHour = startHour + (startHourOffsets[court.id] ?? 0);
+                const timeRange = calculateCourtTimeRange(courtStartHour, court.hours);
 
                 return (
                   <article key={court.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
@@ -52,16 +63,38 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds, matchType }: Pr
                       <h2 className="truncate text-base font-semibold text-slate-900">{court.name}</h2>
                       <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-primary">{court.hours} ชม.</span>
                     </div>
-                    {endTime ? (
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs text-slate-500">เริ่มตี</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-900">{formatHour(startHour)}</p>
+                    {timeRange ? (
+                      <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                        <div aria-live="polite" className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                          <div>
+                            <p className="text-xs text-slate-500">เริ่มตี</p>
+                            <p className="mt-1 text-lg font-semibold text-slate-900">{timeRange.startTime}</p>
+                            {timeRange.startDaysLater !== 0 ? <p className="mt-0.5 text-xs text-slate-500">{timeRange.startDaysLater > 0 ? `อีก ${timeRange.startDaysLater} วัน` : `ก่อนหน้า ${Math.abs(timeRange.startDaysLater)} วัน`}</p> : null}
+                          </div>
+                          <ArrowRight aria-hidden="true" size={17} className="text-slate-400" />
+                          <div className="text-right">
+                            <p className="text-xs text-slate-500">สิ้นสุด</p>
+                            <p className="mt-1 text-lg font-semibold text-slate-900">{timeRange.endTime}</p>
+                            {timeRange.endDaysLater !== 0 ? <p className="mt-0.5 text-xs text-slate-500">{timeRange.endDaysLater > 0 ? `อีก ${timeRange.endDaysLater} วัน` : `ก่อนหน้า ${Math.abs(timeRange.endDaysLater)} วัน`}</p> : null}
+                          </div>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="text-xs text-slate-500">สิ้นสุด</p>
-                          <p className="mt-1 text-lg font-semibold text-slate-900">{endTime.time}</p>
-                          {endTime.daysLater > 0 ? <p className="mt-0.5 text-xs text-slate-500">อีก {endTime.daysLater} วัน</p> : null}
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            aria-label={`เลื่อนเวลาเริ่ม ${court.name} เร็วขึ้น 1 ชั่วโมง`}
+                            onClick={() => shiftCourtStart(court.id, -1)}
+                            className="flex min-h-10 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200"
+                          >
+                            <ChevronLeft aria-hidden="true" size={15} /> −1 ชม.
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`เลื่อนเวลาเริ่ม ${court.name} ช้าลง 1 ชั่วโมง`}
+                            onClick={() => shiftCourtStart(court.id, 1)}
+                            className="flex min-h-10 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 active:bg-slate-200"
+                          >
+                            +1 ชม. <ChevronRight aria-hidden="true" size={15} />
+                          </button>
                         </div>
                       </div>
                     ) : (
