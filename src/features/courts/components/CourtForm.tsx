@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { MultiSelectField } from "@/components/forms/MultiSelectField";
 import { createSuggestedCourtName, type AddCourtData, type CourtActionErrorCode } from "@/features/courts/actions/courtActions";
 import type { Court } from "@/features/courts/data/courtRepository";
@@ -10,13 +10,15 @@ import type { ActionResult } from "@/lib/actionResult";
 type CourtFormProps = {
   courts: Court[];
   selectedCourtIds: string[];
+  startHour: string;
   isLoading: boolean;
   error: string | null;
+  onStartHourChange: (hour: string) => void;
   toggleCourt: (id: string) => Promise<ActionResult<string[], CourtActionErrorCode>>;
   addCourt: (input: { name: string; hours: number }) => Promise<ActionResult<AddCourtData, CourtActionErrorCode>>;
 };
 
-export function CourtForm({ courts, selectedCourtIds, isLoading, error, toggleCourt, addCourt }: CourtFormProps) {
+export function CourtForm({ courts, selectedCourtIds, startHour, isLoading, error, onStartHourChange, toggleCourt, addCourt }: CourtFormProps) {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [courtName, setCourtName] = useState(createSuggestedCourtName);
   const [hours, setHours] = useState("1");
@@ -31,7 +33,25 @@ export function CourtForm({ courts, selectedCourtIds, isLoading, error, toggleCo
   }
 
   return (
-    <section className="space-y-4">
+    <section className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
+        <label htmlFor="start-hour" className="text-sm font-semibold text-slate-800">เวลาเริ่มตี</label>
+        <div className="relative">
+          <select
+            id="start-hour"
+            value={startHour}
+            onChange={(event) => onStartHourChange(event.target.value)}
+            className="h-12 w-full appearance-none rounded-xl border border-slate-200 bg-white px-3.5 pr-10 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+          >
+            <option value="">เลือกเวลาเริ่มตี</option>
+            {Array.from({ length: 24 }, (_, hour) => {
+              const value = String(hour).padStart(2, "0");
+              return <option key={value} value={value}>{value}:00</option>;
+            })}
+          </select>
+          <ChevronDown aria-hidden="true" size={18} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        </div>
+      </div>
       <h2 className="text-base font-semibold text-slate-900">Court</h2>
       <MultiSelectField
         id="court-select"
