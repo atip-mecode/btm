@@ -1,0 +1,21 @@
+name: btm
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    init: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - web_node_modules:/workspace/node_modules
+      - pnpm_store:/root/.local/share/pnpm/store
+    environment:
+      NODE_ENV: development
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+    command: ["./node_modules/.bin/next", "dev", "--hostname", "0.0.0.0"]
+volumes:
+  web_node_modules:
+  pnpm_store:
