@@ -46,7 +46,7 @@ button, input, textarea, select { font: inherit; }
     display: grid;
     place-items: center;
     padding: 24px;
-    background: #eeeeee;
+    background: #f3f5f7;
   }
   html[data-phone-frame="true"] body.app-body > .app-shell {
     width: 390px;
