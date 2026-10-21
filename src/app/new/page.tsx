@@ -5,7 +5,7 @@ export default function NewPage() {
   return (
     <CleanLayout>
       <TopNavigation />
-      <main aria-label="สร้างรายการใหม่" className="flex-1 bg-white" />
+      <main aria-label="สร้างรายการใหม่" className="flex-1" />
     </CleanLayout>
   );
 }
