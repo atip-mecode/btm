@@ -7,6 +7,7 @@ import { createPairingResult } from "@/features/matching/actions/pairingActions"
 import { PairingResultView } from "@/features/matching/components/PairingResultView";
 import { useRooms } from "@/features/matching/hooks/useRooms";
 import { computePairingResult } from "@/features/matching/services/computePairingResult";
+import type { PairingResult } from "@/features/matching/types/pairingResult";
 
 type PairingResultFlowProps = {
   roomId: string;
@@ -31,10 +32,43 @@ export function PairingResultFlow({ roomId }: PairingResultFlowProps) {
     if (savedRoom.success) router.push(`/match/${encodeURIComponent(nextRoomId)}`);
   }
 
+  async function handleRenamePlayer(
+    startHour: number,
+    sourcePairIndex: number,
+    playerIndex: number,
+    rawName: string,
+  ): Promise<boolean> {
+    const name = rawName.trim().replace(/\s+/g, " ");
+    const sourceHour = room?.result.hours.find((hour) => hour.startHour === startHour);
+    const sourcePair = sourceHour?.paired[sourcePairIndex];
+    const player = sourcePair?.[playerIndex];
+    if (!room || !player || !name) return false;
+    if (player.name === name) return true;
+
+    const result: PairingResult = {
+      ...room.result,
+      hours: room.result.hours.map((hour) => hour.startHour !== startHour
+        ? hour
+        : {
+          ...hour,
+          paired: hour.paired.map((pair, pairIndex) => pairIndex !== sourcePairIndex
+            ? pair
+            : pair.map((pairPlayer, index) => index !== playerIndex ? pairPlayer : { ...pairPlayer, name })),
+        }),
+    };
+    const savedRoom = await saveRoom({ id: room.id, fillin: room.fillin, result });
+    return savedRoom.success;
+  }
+
   return (
     <>
       {isLoading ? <p role="status" className="px-4 pt-5 text-sm text-slate-500">กำลังโหลดผลจับคู่…</p> : null}
-      {!isLoading && room ? <PairingResultView result={computePairingResult(room.result, room.fillin)} /> : null}
+      {!isLoading && room ? (
+        <PairingResultView
+          result={computePairingResult(room.result, room.fillin)}
+          onRenamePlayer={handleRenamePlayer}
+        />
+      ) : null}
       {!isLoading && !room && !error ? (
         <main className="min-h-0 flex-1 px-4 pt-5">
           <h1 className="text-lg font-semibold text-slate-900">ไม่พบห้องนี้</h1>

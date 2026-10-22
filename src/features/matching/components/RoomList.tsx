@@ -11,18 +11,7 @@ function formatHour(hour: number): string {
 }
 
 function countPlayers(result: PairingResult): number {
-  const playerIds = new Set<string>();
-  for (const hour of result.hours) {
-    for (const pair of hour.paired) {
-      for (const player of pair) playerIds.add(player.id);
-    }
-    for (const court of hour.courts) {
-      for (const pair of court.paireds) {
-        for (const player of pair) playerIds.add(player.id);
-      }
-    }
-  }
-  return playerIds.size;
+  return new Set(result.hours.flatMap((hour) => hour.paired.flatMap((pair) => pair.map((player) => player.id)))).size;
 }
 
 function getRoomHref(room: MatchRoom): string {
@@ -60,7 +49,7 @@ function RoomCard({ room }: { room: MatchRoom }) {
         </span>
       </div>
       <p className="mt-3 text-sm text-slate-600">
-        {courtNames.length} คอร์ด · {countPlayers(result)} คน · {result.hours.length} ชม.
+        {courtNames.length} คอร์ด · {countPlayers(room.result)} คน · {result.hours.length} ชม.
       </p>
       {courtNames.length > 0 ? <p className="mt-1 truncate text-xs text-slate-500">{courtNames.join(" · ")}</p> : null}
     </Link>
