@@ -104,9 +104,9 @@ function PairPlayers({
   onRenamePlayer: PairingResultViewProps["onRenamePlayer"];
 }) {
   return (
-    <span className="inline-flex flex-wrap items-center gap-x-1">
+    <span className="whitespace-normal">
       {pair.players.map((player, playerIndex) => (
-        <span key={player.id + "-" + playerIndex} className="inline-flex items-center">
+        <span key={player.id + "-" + playerIndex}>
           <EditablePlayerName
             player={player}
             startHour={startHour}
@@ -114,7 +114,7 @@ function PairPlayers({
             playerIndex={playerIndex}
             onRenamePlayer={onRenamePlayer}
           />
-          {playerIndex < pair.players.length - 1 ? <span className="px-0.5">+</span> : null}
+          {playerIndex < pair.players.length - 1 ? " + " : null}
         </span>
       ))}
     </span>
@@ -142,12 +142,26 @@ function HourResultSection({ hour, onRenamePlayer }: {
     try {
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-      const imageUrl = await toPng(element, {
-        backgroundColor: "#ffffff",
-        pixelRatio: 2,
-        style: { padding: "20px" },
-        filter: (node) => !(node instanceof Element && node.getAttribute("data-export-ignore") === "true"),
-      });
+      const exportControls = Array.from(
+        element.querySelectorAll<HTMLElement | SVGElement>('[data-export-ignore="true"]'),
+      ).map((control) => ({ control, display: control.style.display }));
+
+      let imageUrl: string;
+      try {
+        exportControls.forEach(({ control }) => {
+          control.style.display = "none";
+        });
+        imageUrl = await toPng(element, {
+          backgroundColor: "#ffffff",
+          pixelRatio: 2,
+          style: { padding: "20px" },
+        });
+      } finally {
+        exportControls.forEach(({ control, display }) => {
+          control.style.display = display;
+        });
+      }
+
       const link = document.createElement("a");
       link.download = "match-" + hour.startHour + "-" + hour.endHour + ".png";
       link.href = imageUrl;
