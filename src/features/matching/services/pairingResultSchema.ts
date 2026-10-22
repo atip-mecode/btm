@@ -52,7 +52,7 @@ function isHour(value: unknown): boolean {
     && value.paired.every(isPair);
 }
 
-function isPairingResultShape(value: unknown): value is Omit<PairingResult, "fillin"> {
+function isPairingResultShape(value: unknown): value is PairingResult {
   return isRecord(value)
     && Array.isArray(value.hours)
     && value.hours.every(isHour)
@@ -60,12 +60,14 @@ function isPairingResultShape(value: unknown): value is Omit<PairingResult, "fil
 }
 
 export function isPairingResult(value: unknown): value is PairingResult {
-  return isRecord(value) && typeof value.fillin === "boolean" && isPairingResultShape(value);
+  return isPairingResultShape(value);
 }
 
-/** Add defaults when reading rooms saved before these fields were part of the result interface. */
-export function parsePairingResult(value: unknown, legacyFillin = false): PairingResult | null {
-  if (isPairingResult(value)) return value;
-  if (isPairingResultShape(value)) return { ...value, fillin: legacyFillin };
-  return null;
+/** Drop the legacy display option from results saved before it moved to the room. */
+export function parsePairingResult(value: unknown): PairingResult | null {
+  if (!isPairingResult(value)) return null;
+  return {
+    hours: value.hours,
+    ...(value.prepare === undefined ? {} : { prepare: value.prepare }),
+  };
 }

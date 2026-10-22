@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BottomActionNavigation } from "@/components/layout/BottomActionNavigation";
-import { resolvePairing } from "@/features/matching/actions/pairingActions";
+import { createPairingResult } from "@/features/matching/actions/pairingActions";
 import { PairingResultView } from "@/features/matching/components/PairingResultView";
 import { useRooms } from "@/features/matching/hooks/useRooms";
 import { computePairingResult } from "@/features/matching/services/computePairingResult";
@@ -24,8 +24,8 @@ export function PairingResultFlow({ roomId }: PairingResultFlowProps) {
 
     setIsRerolling(true);
     const nextRoomId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const rerolledResult = resolvePairing(room.result.prepare, room.result.fillin);
-    const savedRoom = await saveRoom({ id: nextRoomId, result: rerolledResult });
+    const rerolledResult = createPairingResult(room.result.prepare);
+    const savedRoom = await saveRoom({ id: nextRoomId, fillin: room.fillin, result: rerolledResult });
     setIsRerolling(false);
 
     if (savedRoom.success) router.push(`/match/${encodeURIComponent(nextRoomId)}`);
@@ -34,7 +34,7 @@ export function PairingResultFlow({ roomId }: PairingResultFlowProps) {
   return (
     <>
       {isLoading ? <p role="status" className="px-4 pt-5 text-sm text-slate-500">กำลังโหลดผลจับคู่…</p> : null}
-      {!isLoading && room ? <PairingResultView result={computePairingResult(room.result)} /> : null}
+      {!isLoading && room ? <PairingResultView result={computePairingResult(room.result, room.fillin)} /> : null}
       {!isLoading && !room && !error ? (
         <main className="min-h-0 flex-1 px-4 pt-5">
           <h1 className="text-lg font-semibold text-slate-900">ไม่พบห้องนี้</h1>

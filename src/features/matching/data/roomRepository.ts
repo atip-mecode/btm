@@ -4,6 +4,7 @@ import type { PairingResult } from "@/features/matching/types/pairingResult";
 export type MatchRoom = {
   id: string;
   createdAt: string;
+  fillin: boolean;
   result: PairingResult;
 };
 
@@ -35,9 +36,16 @@ function parseMatchRoom(value: unknown): MatchRoom | null {
     && Number.isFinite(Date.parse(value.createdAt))
     && "result" in value)) return null;
 
-  const legacyFillin = "fillin" in value && typeof value.fillin === "boolean" ? value.fillin : false;
-  const result = parsePairingResult(value.result, legacyFillin);
-  return result ? { id: value.id, createdAt: value.createdAt, result } : null;
+  const resultRecord = typeof value.result === "object" && value.result !== null && !Array.isArray(value.result)
+    ? value.result
+    : null;
+  const legacyFillin = "fillin" in value && typeof value.fillin === "boolean"
+    ? value.fillin
+    : resultRecord && "fillin" in resultRecord && typeof resultRecord.fillin === "boolean"
+      ? resultRecord.fillin
+      : false;
+  const result = parsePairingResult(value.result);
+  return result ? { id: value.id, createdAt: value.createdAt, fillin: legacyFillin, result } : null;
 }
 
 function readRooms(): MatchRoom[] {

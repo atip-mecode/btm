@@ -7,7 +7,7 @@ import { BottomActionNavigation } from "@/components/layout/BottomActionNavigati
 import { useCourts } from "@/features/courts/hooks/useCourts";
 import { useMembers } from "@/features/members/hooks/useMembers";
 import { calculateCourtTimeRange, hasContinuousCourtOverlap } from "@/features/courts/utils/courtSchedule";
-import { resolvePairing } from "@/features/matching/actions/pairingActions";
+import { createPairingResult } from "@/features/matching/actions/pairingActions";
 import { useRooms } from "@/features/matching/hooks/useRooms";
 import type { PreparedMatchRecord } from "@/features/matching/types/preparedMatch";
 
@@ -146,7 +146,7 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourts
       players,
     };
     const roomId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const savedRoom = await saveRoom({ id: roomId, result: resolvePairing(prepared, fillin) });
+    const savedRoom = await saveRoom({ id: roomId, fillin, result: createPairingResult(prepared) });
     if (!savedRoom.success) return;
     router.push(`/match/${encodeURIComponent(roomId)}`);
   }

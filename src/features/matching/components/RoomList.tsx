@@ -30,7 +30,7 @@ function getRoomHref(room: MatchRoom): string {
 }
 
 function RoomCard({ room }: { room: MatchRoom }) {
-  const result = computePairingResult(room.result);
+  const result = computePairingResult(room.result, room.fillin);
   const firstHour = result.hours[0];
   const lastHour = result.hours[result.hours.length - 1];
   const courtNames = Array.from(new Set(result.hours.flatMap((hour) => hour.courts.map((court) => court.courtName))));
@@ -56,7 +56,7 @@ function RoomCard({ room }: { room: MatchRoom }) {
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-primary">
-          {room.result.fillin ? "แยกคอร์ด" : "รวมคอร์ด"}
+          {room.fillin ? "แยกคอร์ด" : "รวมคอร์ด"}
         </span>
       </div>
       <p className="mt-3 text-sm text-slate-600">

@@ -17,7 +17,6 @@ export type HourlyPairing = {
 };
 
 export type PairingResult = {
-  fillin: boolean;
   hours: HourlyPairing[];
   /** Preparation snapshot used to produce this result and future rerolls. */
   prepare?: PreparedMatchRecord;
