@@ -51,6 +51,17 @@ export function useMembers(repository: MemberRepository = localStorageMemberRepo
     return result;
   }, [repository, selectedMemberIds]);
 
+  const selectMembers = useCallback(async (memberIds: string[]) => {
+    const result = await saveSelectedMembersAction(repository, memberIds);
+    if (result.success) {
+      setSelectedMemberIds(result.data);
+      setError(null);
+    } else {
+      setError(result.error.message);
+    }
+    return result;
+  }, [repository]);
+
   const addMember = useCallback(async (name: string) => {
     const result = await addMemberAction(repository, name);
     if (result.success) {
@@ -63,5 +74,5 @@ export function useMembers(repository: MemberRepository = localStorageMemberRepo
     return result;
   }, [repository]);
 
-  return { members, selectedMemberIds, isLoading, error, toggleMember, addMember };
+  return { members, selectedMemberIds, isLoading, error, toggleMember, selectMembers, addMember };
 }
