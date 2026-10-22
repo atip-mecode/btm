@@ -1,4 +1,5 @@
 import type { PreparedPlayerSchedule } from "@/features/matching/types/preparedMatch";
+import type { PreparedMatchRecord } from "@/features/matching/types/preparedMatch";
 
 export type Player = PreparedPlayerSchedule;
 
@@ -16,5 +17,8 @@ export type HourlyPairing = {
 };
 
 export type PairingResult = {
+  fillin: boolean;
   hours: HourlyPairing[];
+  /** Preparation snapshot used to produce this result and future rerolls. */
+  prepare?: PreparedMatchRecord;
 };

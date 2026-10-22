@@ -123,7 +123,7 @@ function HourResultSection({ hour }: { hour: HourlyPairing }) {
 
 export function PairingResultView({ result }: PairingResultViewProps) {
   return (
-    <main aria-label="ผลจับคู่" className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-5">
+    <main aria-label="ผลจับคู่" className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(84px+env(safe-area-inset-bottom))] pt-5">
       <header className="mb-5">
         <h1 className="text-xl font-bold text-slate-900">ผลจับคู่</h1>
         <p className="mt-1 text-sm text-slate-500">ดูคู่ที่เล่นในแต่ละช่วงเวลา</p>

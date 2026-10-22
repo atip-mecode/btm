@@ -1,9 +1,10 @@
 import { HomeLayout } from "@/components/layout/HomeLayout";
+import { RoomList } from "@/features/matching/components/RoomList";
 
 export default function HomePage() {
   return (
     <HomeLayout>
-      <main aria-label="หน้าแรก" className="min-h-full" />
+      <RoomList />
     </HomeLayout>
   );
 }

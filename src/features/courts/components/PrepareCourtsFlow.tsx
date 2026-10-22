@@ -8,7 +8,7 @@ import { useCourts } from "@/features/courts/hooks/useCourts";
 import { useMembers } from "@/features/members/hooks/useMembers";
 import { calculateCourtTimeRange, hasContinuousCourtOverlap } from "@/features/courts/utils/courtSchedule";
 import { resolvePairing } from "@/features/matching/actions/pairingActions";
-import { encodePairingResult } from "@/features/matching/services/pairingUrlState";
+import { useRooms } from "@/features/matching/hooks/useRooms";
 import type { PreparedMatchRecord } from "@/features/matching/types/preparedMatch";
 
 type PrepareCourtsFlowProps = {
@@ -18,11 +18,13 @@ type PrepareCourtsFlowProps = {
 
 export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourtsFlowProps) {
   const router = useRouter();
+  const [fillin, setFillin] = useState(false);
   const [startHourOffsets, setStartHourOffsets] = useState<Record<string, number>>({});
   const [memberEndHours, setMemberEndHours] = useState<Record<string, number>>({});
   const [memberStartHours, setMemberStartHours] = useState<Record<string, number>>({});
   const { courts, isLoading } = useCourts();
   const { members, selectedMemberIds, isLoading: areMembersLoading } = useMembers();
+  const { saveRoom, error: roomError } = useRooms();
   const courtsById = new Map(courts.map((court) => [court.id, court]));
   const selectedCourts = selectedCourtIds.flatMap((id) => {
     const court = courtsById.get(id);
@@ -119,7 +121,7 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourts
     }));
   }
 
-  function handlePairing() {
+  async function handlePairing() {
     if (startHour === null || playerRangeStart === null || playerRangeEnd === null || maxPlayHours === null) return;
     if (!hasCompleteCourtRange || selectedMembers.length === 0) return;
 
@@ -143,8 +145,10 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourts
       }),
       players,
     };
-    const state = encodePairingResult(resolvePairing(prepared));
-    router.push(`/match?${new URLSearchParams({ state, fillin: "false" }).toString()}`);
+    const roomId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const savedRoom = await saveRoom({ id: roomId, result: resolvePairing(prepared, fillin) });
+    if (!savedRoom.success) return;
+    router.push(`/match/${encodeURIComponent(roomId)}`);
   }
 
   return (
@@ -165,6 +169,23 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourts
               <p className="shrink-0 text-lg font-bold text-primary" aria-live="polite">{maxPlayHours} ชม.</p>
             </section>
           ) : null}
+
+          <section aria-label="ตัวเลือกการจับคู่" className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">แยกคอร์ด</h2>
+              <p className="mt-1 text-xs text-slate-500">กระจายคู่ลงคอร์ดตามช่วงเวลาที่เปิด</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="แยกคอร์ด"
+              aria-checked={fillin}
+              onClick={() => setFillin((current) => !current)}
+              className={"relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary " + (fillin ? "bg-primary" : "bg-slate-300")}
+            >
+              <span className={"pointer-events-none absolute left-1 top-1 size-5 rounded-full bg-white shadow transition-transform " + (fillin ? "translate-x-5" : "translate-x-0")} />
+            </button>
+          </section>
 
           {isLoading ? (
             <p role="status" className="rounded-xl bg-white p-4 text-sm text-slate-500 shadow-sm">กำลังโหลดคอร์ด…</p>
@@ -321,6 +342,7 @@ export function PrepareCourtsFlow({ startHour, selectedCourtIds }: PrepareCourts
           ) : null}
         </div>
       </main>
+      {roomError ? <p role="alert" className="px-4 pb-2 text-sm text-red-600">{roomError}</p> : null}
       <BottomActionNavigation
         onBack={handleBack}
         onNext={handlePairing}
