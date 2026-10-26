@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useImperativeHandle, useRef, useState, type FormEvent } from "react";
 import { toPng } from "html-to-image";
 import { Check, ChevronDown, Download, Pencil, X } from "lucide-react";
 import type { ComputedPair, ComputedPairingResult } from "@/features/matching/services/computePairingResult";
@@ -9,6 +9,10 @@ import type { Player } from "@/features/matching/types/pairingResult";
 type PairingResultViewProps = {
   result: ComputedPairingResult;
   onRenamePlayer: (startHour: number, sourcePairIndex: number, playerIndex: number, name: string) => Promise<boolean>;
+};
+
+type HourResultSectionHandle = {
+  saveAsPng: () => Promise<boolean>;
 };
 
 function formatHour(hour: number): string {
@@ -121,9 +125,10 @@ function PairPlayers({
   );
 }
 
-function HourResultSection({ hour, onRenamePlayer }: {
+function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
   hour: ComputedPairingResult["hours"][number];
   onRenamePlayer: PairingResultViewProps["onRenamePlayer"];
+  sectionRef: React.Ref<HourResultSectionHandle>;
 }) {
   const hourRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -132,7 +137,7 @@ function HourResultSection({ hour, onRenamePlayer }: {
 
   async function saveAsPng() {
     const element = hourRef.current;
-    if (!element || isSaving) return;
+    if (!element || isSaving) return false;
 
     const wasExpanded = isExpanded;
     setIsExpanded(true);
@@ -168,13 +173,17 @@ function HourResultSection({ hour, onRenamePlayer }: {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      return true;
     } catch {
       setSaveError("บันทึกภาพไม่สำเร็จ ลองอีกครั้ง");
+      return false;
     } finally {
       setIsExpanded(wasExpanded);
       setIsSaving(false);
     }
   }
+
+  useImperativeHandle(sectionRef, () => ({ saveAsPng }), [isExpanded, isSaving, hour]);
 
   return (
     <div ref={hourRef} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -245,15 +254,46 @@ function HourResultSection({ hour, onRenamePlayer }: {
 }
 
 export function PairingResultView({ result, onRenamePlayer }: PairingResultViewProps) {
+  const sectionRefs = useRef<Array<HourResultSectionHandle | null>>([]);
+  const [isSavingAll, setIsSavingAll] = useState(false);
+  const [saveAllError, setSaveAllError] = useState(false);
+
+  async function saveAllAsPng() {
+    if (isSavingAll) return;
+
+    setIsSavingAll(true);
+    setSaveAllError(false);
+    try {
+      for (const section of sectionRefs.current.slice(0, result.hours.length)) {
+        const saved = await section?.saveAsPng();
+        if (!saved) setSaveAllError(true);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 300));
+      }
+    } finally {
+      setIsSavingAll(false);
+    }
+  }
+
   return (
     <main aria-label="ผลจับคู่" className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(84px+env(safe-area-inset-bottom))] pt-5">
       <header className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">ผลจับคู่</h1>
-        <p className="mt-1 text-sm text-slate-500">ดูคู่ที่เล่นในแต่ละช่วงเวลา</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">ผลจับคู่</h1>
+            <p className="mt-1 text-sm text-slate-500">ดูคู่ที่เล่นในแต่ละช่วงเวลา</p>
+          </div>
+          {result.hours.length > 0 ? (
+            <button type="button" onClick={saveAllAsPng} disabled={isSavingAll} data-export-ignore="true" className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-white disabled:opacity-50">
+              <Download aria-hidden="true" size={16} />
+              {isSavingAll ? "กำลังบันทึก…" : "Export PNG ทั้งหมด"}
+            </button>
+          ) : null}
+        </div>
+        {saveAllError ? <p role="alert" className="mt-2 text-sm text-red-600">บันทึกภาพไม่สำเร็จ ลองอีกครั้ง</p> : null}
       </header>
       {result.hours.length === 0 ? <p className="text-sm text-slate-500">ไม่มีช่วงเวลาที่จับคู่ได้</p> : null}
       <div className="space-y-3">
-        {result.hours.map((hour) => <HourResultSection key={hour.startHour} hour={hour} onRenamePlayer={onRenamePlayer} />)}
+        {result.hours.map((hour, index) => <HourResultSection key={hour.startHour} sectionRef={(handle) => { sectionRefs.current[index] = handle; }} hour={hour} onRenamePlayer={onRenamePlayer} />)}
       </div>
     </main>
   );
