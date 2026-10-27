@@ -1,6 +1,6 @@
 "use client";
 
-import { useImperativeHandle, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { toPng } from "html-to-image";
 import { Check, ChevronDown, Download, Pencil, X } from "lucide-react";
 import type { ComputedPair, ComputedPairingResult } from "@/features/matching/services/computePairingResult";
@@ -9,10 +9,6 @@ import type { Player } from "@/features/matching/types/pairingResult";
 type PairingResultViewProps = {
   result: ComputedPairingResult;
   onRenamePlayer: (startHour: number, sourcePairIndex: number, playerIndex: number, name: string) => Promise<boolean>;
-};
-
-type HourResultSectionHandle = {
-  saveAsPng: () => Promise<boolean>;
 };
 
 function formatHour(hour: number): string {
@@ -125,10 +121,10 @@ function PairPlayers({
   );
 }
 
-function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
+function HourResultSection({ hour, onRenamePlayer, forceExpanded }: {
   hour: ComputedPairingResult["hours"][number];
   onRenamePlayer: PairingResultViewProps["onRenamePlayer"];
-  sectionRef: React.Ref<HourResultSectionHandle>;
+  forceExpanded: boolean;
 }) {
   const hourRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -183,14 +179,14 @@ function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
     }
   }
 
-  useImperativeHandle(sectionRef, () => ({ saveAsPng }), [isExpanded, isSaving, hour]);
+  const isOpen = isExpanded || forceExpanded;
 
   return (
     <div ref={hourRef} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
         <button
           type="button"
-          aria-expanded={isExpanded}
+          aria-expanded={isOpen}
           onClick={() => setIsExpanded((expanded) => !expanded)}
           className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
         >
@@ -202,7 +198,7 @@ function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
             aria-hidden="true"
             data-export-ignore="true"
             size={18}
-            className={"shrink-0 text-slate-500 transition-transform " + (isExpanded ? "rotate-180" : "")}
+            className={"shrink-0 text-slate-500 transition-transform " + (isOpen ? "rotate-180" : "")}
           />
         </button>
         <button
@@ -216,7 +212,7 @@ function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
           <Download aria-hidden="true" size={18} />
         </button>
       </div>
-      {isExpanded ? (
+      {isOpen ? (
         <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
             {hour.courts.map((court) => (
               <article key={court.courtId} aria-label={court.courtName} className="rounded-xl bg-slate-50 p-3">
@@ -254,21 +250,47 @@ function HourResultSection({ hour, onRenamePlayer, sectionRef }: {
 }
 
 export function PairingResultView({ result, onRenamePlayer }: PairingResultViewProps) {
-  const sectionRefs = useRef<Array<HourResultSectionHandle | null>>([]);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [saveAllError, setSaveAllError] = useState(false);
 
   async function saveAllAsPng() {
-    if (isSavingAll) return;
+    const element = resultsRef.current;
+    if (!element || isSavingAll) return;
 
     setIsSavingAll(true);
     setSaveAllError(false);
     try {
-      for (const section of sectionRefs.current.slice(0, result.hours.length)) {
-        const saved = await section?.saveAsPng();
-        if (!saved) setSaveAllError(true);
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 300));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      const exportControls = Array.from(
+        element.querySelectorAll<HTMLElement | SVGElement>('[data-export-ignore="true"]'),
+      ).map((control) => ({ control, display: control.style.display }));
+
+      let imageUrl: string;
+      try {
+        exportControls.forEach(({ control }) => {
+          control.style.display = "none";
+        });
+        imageUrl = await toPng(element, {
+          backgroundColor: "#ffffff",
+          pixelRatio: 2,
+          style: { padding: "20px" },
+        });
+      } finally {
+        exportControls.forEach(({ control, display }) => {
+          control.style.display = display;
+        });
       }
+
+      const link = document.createElement("a");
+      link.download = "match-all.png";
+      link.href = imageUrl;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      setSaveAllError(true);
     } finally {
       setIsSavingAll(false);
     }
@@ -292,8 +314,8 @@ export function PairingResultView({ result, onRenamePlayer }: PairingResultViewP
         {saveAllError ? <p role="alert" className="mt-2 text-sm text-red-600">บันทึกภาพไม่สำเร็จ ลองอีกครั้ง</p> : null}
       </header>
       {result.hours.length === 0 ? <p className="text-sm text-slate-500">ไม่มีช่วงเวลาที่จับคู่ได้</p> : null}
-      <div className="space-y-3">
-        {result.hours.map((hour, index) => <HourResultSection key={hour.startHour} sectionRef={(handle) => { sectionRefs.current[index] = handle; }} hour={hour} onRenamePlayer={onRenamePlayer} />)}
+      <div ref={resultsRef} className="space-y-3">
+        {result.hours.map((hour) => <HourResultSection key={hour.startHour} forceExpanded={isSavingAll} hour={hour} onRenamePlayer={onRenamePlayer} />)}
       </div>
     </main>
   );
